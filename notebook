@@ -1,0 +1,191 @@
+$cd /workspace/champions_ml_project && python -c "
+import json
+import base64
+
+# Crear el notebook completo
+notebook = {
+    'nbformat': 4,
+    'nbformat_minor': 0,
+    'metadata': {
+        'colab': {
+            'provenance': [],
+            'toc_visible': True
+        },
+        'kernelspec': {
+            'name': 'python3',
+            'display_name': 'Python 3'
+        },
+        'language_info': {
+            'name': 'python'
+        }
+    },
+    'cells': []
+}
+
+# Función para crear celdas markdown
+def add_markdown_cell(content):
+    notebook['cells'].append({
+        'cell_type': 'markdown',
+        'source': content.split('\n'),
+        'metadata': {'id': f'cell_{len(notebook[\"cells\"])}'}
+    })
+
+# Función para crear celdas de código
+def add_code_cell(content):
+    notebook['cells'].append({
+        'cell_type': 'code',
+        'source': content.split('\n'),
+        'execution_count': None,
+        'metadata': {'id': f'cell_{len(notebook[\"cells\"])}'},
+        'outputs': []
+    })
+
+# Título principal
+add_markdown_cell('''# 🏆 PROYECTO MACHINE LEARNING - CHAMPIONS LEAGUE
+
+## 📅 Partidos de Hoy (Miércoles 5/11/2025)
+
+### ⚽ Equipos y Partidos:
+1. **Qarabağ vs Chelsea**
+2. **Inter vs Kairat Almaty** 
+3. **Manchester City vs Borussia Dortmund**
+4. **Club Brugge vs FC Barcelona**
+
+### 🎯 Objetivos del Proyecto:
+- Análisis exploratorio de datos
+- Predicción de resultados usando ML
+- Análisis de probabilidades
+- Visualizaciones interactivas
+- Dashboard de predicciones''')
+
+add_markdown_cell('## 📊 1. IMPORTACIÓN DE LIBRERÍAS Y CONFIGURACIÓN')
+
+add_code_cell('''import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import warnings
+warnings.filterwarnings('ignore')
+
+# Machine Learning
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+import xgboost as xgb
+
+# Configuración de visualizaciones
+plt.style.use('seaborn-v0_8')
+sns.set_palette(\"husl\")
+plt.rcParams['figure.figsize'] = (12, 8)
+plt.rcParams['font.size'] = 10
+
+print(\"✅ Librerías importadas exitosamente!\")
+print(\"🚀 Proyecto Champions League ML - Listo para comenzar\")''')
+
+add_markdown_cell('## 📈 2. CARGA Y ANÁLISIS DE DATOS')
+
+add_code_cell('''# Cargar datos procesados
+import json
+
+# Cargar datos desde archivos JSON
+with open('data/teams_data.json', 'r') as f:
+    teams_data = json.load(f)
+
+with open('data/matches_data.json', 'r') as f:
+    matches_data = json.load(f)
+
+# Convertir a DataFrames
+teams_df = pd.DataFrame.from_dict(teams_data, orient='index').reset_index()
+teams_df.rename(columns={'index': 'team'}, inplace=True)
+
+matches_df = pd.DataFrame(matches_data)
+
+print(\"📊 Datos cargados:\")
+print(f\"🏆 Equipos: {len(teams_df)}\")
+print(f\"⚽ Partidos: {len(matches_df)}\")
+
+print(\"\\n🔍 Vista previa de equipos:\")
+display(teams_df.head())
+print(\"\\n🔍 Vista previa de partidos:\")
+display(matches_df)''')
+
+add_markdown_cell('## 📊 3. ANÁLISIS EXPLORATORIO DE DATOS (EDA)')
+
+add_code_cell('''# Estadísticas generales
+print(\"📈 ESTADÍSTICAS GENERALES DE EQUIPOS\")
+print(\"=\" * 50)
+print(teams_df.describe())
+
+# Crear visualizaciones
+plt.figure(figsize=(15, 10))
+
+# Distribución de ratings
+plt.subplot(2, 3, 1)
+plt.hist(teams_df['rating'], bins=8, alpha=0.7, color='skyblue', edgecolor='black')
+plt.title('Distribución de Ratings')
+plt.xlabel('Rating')
+plt.ylabel('Frecuencia')
+
+# Relación Rating vs ELO
+plt.subplot(2, 3, 2)
+plt.scatter(teams_df['rating'], teams_df['elo_general'], alpha=0.7, s=100, color='coral')
+plt.title('Rating vs Ranking ELO')
+plt.xlabel('Rating')
+plt.ylabel('ELO Ranking')
+
+# Tilt (forma)
+plt.subplot(2, 3, 3)
+plt.bar(teams_df['team'], teams_df['tilt'], color='lightgreen', alpha=0.7)
+plt.title('Tilt (Forma del Equipo)')
+plt.xlabel('Equipo')
+plt.ylabel('Tilt')
+plt.xticks(rotation=45)
+
+# Goles Esperados
+plt.subplot(2, 3, 4)
+plt.bar(teams_df['team'], teams_df['goles_esperados'], color='orange', alpha=0.7)
+plt.title('Goles Esperados (xG)')
+plt.xlabel('Equipo')
+plt.ylabel('Goles Esperados')
+plt.xticks(rotation=45)
+
+# Puntos Actuales
+plt.subplot(2, 3, 5)
+plt.bar(teams_df['team'], teams_df['puntos_actuales'], color='purple', alpha=0.7)
+plt.title('Puntos en Champions')
+plt.xlabel('Equipo')
+plt.ylabel('Puntos')
+plt.xticks(rotation=45)
+
+# Probabilidad de Victoria
+plt.subplot(2, 3, 6)
+plt.bar(teams_df['team'], teams_df['prob_victoria'], color='red', alpha=0.7)
+plt.title('Probabilidad General de Victoria')
+plt.xlabel('Equipo')
+plt.ylabel('Probabilidad')
+plt.xticks(rotation=45)
+
+plt.tight_layout()
+plt.show()
+
+# Análisis de correlación
+print(\"\\n🔗 MATRIZ DE CORRELACIÓN\")
+print(\"=\" * 30)
+correlation_matrix = teams_df.select_dtypes(include=[np.number]).corr()
+plt.figure(figsize=(10, 8))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f')
+plt.title('Matriz de Correlación - Variables de Equipos')
+plt.tight_layout()
+plt.show()''')
+
+# Guardar el notebook
+with open('notebooks/Champions_ML_Analysis.ipynb', 'w') as f:
+    json.dump(notebook, f, indent=2)
+
+print(\"✅ Notebook creado exitosamente!\")
+print(\"📝 Partes del notebook: 3/8\")
+"
