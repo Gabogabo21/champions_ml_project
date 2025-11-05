@@ -1,212 +1,152 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
-import json
+import plotly.express as px
 
-# --- FUNCIONES DE PROCESAMIENTO ---
+# --- CONFIGURACIÓN DE LA PÁGINA ---
+st.set_page_config(
+    page_title="Dashboard Champions League",
+    page_icon="⚽",
+    layout="wide"
+)
 
-def clean_percentage(value):
-    """Limpia valores de porcentaje y los convierte a decimal"""
-    if pd.isna(value):
-        return 0.0
-    if isinstance(value, str):
-        clean_val = value.replace('%', '').strip()
-        if clean_val == 'NaN':
-            return 0.0
-        try:
-            return float(clean_val) / 100.0
-        except:
-            return 0.0
-    try:
-        return float(value)
-    except:
-        return 0.0
+# --- PREPARACIÓN DE DATOS ---
 
-def clean_numeric(value):
-    """Limpia valores numéricos"""
-    if pd.isna(value):
-        return 0.0
-    try:
-        return float(value)
-    except:
-        return 0.0
-
-@st.cache_data
-def process_data():
-    """
-    Procesa los datos. 
-    IMPORTANTE: He simulado la lectura del Excel para que el ejemplo funcione.
-    Debes reemplazar el código de simulación por: df = pd.read_excel('datos_champions.xlsx', header=None)
-    """
-    # --- INICIO DE SIMULACIÓN ---
-    # Crea un DataFrame de ejemplo que imita la estructura de tu archivo Excel.
-    # Las filas representan las estadísticas y las columnas a los equipos.
-    st.info("ℹ️ **Modo Demostración**: Se están usando datos simulados. Para usar tus datos, sube tu archivo Excel y ajusta la función `process_data`.")
+# Datos de probabilidades proporcionados
+# Los estructuramos como una lista de diccionarios para facilitar la creación del DataFrame
+data = [
+    {'Partido': 'Qarabağ vs Chelsea', 'Equipo': 'Qarabağ', 'Prob_Victoria': '18.6%', 'Prob_Mas1_Gol': '11.9%', 'Prob_Mas2_Goles': '4.8%', 'Prob_Mas3_Goles': '1.5%', 'Prob_Mas4_Goles': '0.4%'},
+    {'Partido': 'Qarabağ vs Chelsea', 'Equipo': 'Chelsea', 'Prob_Victoria': '60.7%', 'Prob_Mas1_Gol': '23.3%', 'Prob_Mas2_Goles': '18.4%', 'Prob_Mas3_Goles': '10.9%', 'Prob_Mas4_Goles': '5.2%'},
+    {'Partido': 'Qarabağ vs Chelsea', 'Equipo': 'Empate', 'Prob_Victoria': '20.6%', 'Prob_Mas1_Gol': '0%', 'Prob_Mas2_Goles': '0%', 'Prob_Mas3_Goles': '0%', 'Prob_Mas4_Goles': '0%'},
     
-    data = [
-        # Col 0, Col 1, Col 2,      Col 3,    Col 4,    Col 5,         Col 6,      Col 7,        Col 8,       Col 9
-        [None, None, 'Qarabağ', 'Chelsea', 'Inter', 'Kairat Almaty', 'Man. City', 'B. Dortmund', 'Club Brugge', 'FC Barcelona'], # Fila 2 (índice 2)
-        [None, None, 82.5, 90.1, 88.3, 75.2, 93.5, 85.0, 79.8, 91.2], # Fila 3 (índice 3) - Ratings
-        [None, None, '5%', '2%', '3%', '8%', '1%', '4%', '6%', '2%'], # Fila 4 (índice 4) - Tilts
-        [None, None, 1850, 1950, 1920, 1750, 1980, 1880, 1800, 1960], # Fila 5 (índice 5) - ELO General
-        [None, None, 1750, 1900, 1890, 1700, 1950, 1850, 1780, 1940], # Fila 6 (índice 6) - ELO País
-        [None, None, '65%', '80%', '75%', '55%', '82%', '70%', '60%', '78%'], # Fila 7 (índice 7) - Prob Victoria
-        [None, None, '20%', '15%', '18%', '25%', '12%', '20%', '22%', '16%'], # Fila 8 (índice 8) - Prob Empate
-        [None, None, 2.1, 2.8, 2.5, 1.8, 3.0, 2.3, 1.9, 2.9], # Fila 9 (índice 9) - Goles Esperados
-        [None, None, 1, 2, 3, 4, 5, 6, 7, 8], # Fila 10 (índice 10) - Posición Actual
-        [None, None, 3, 6, 5, 0, 9, 4, 1, 7]  # Fila 11 (índice 11) - Puntos Actuales
-    ]
-    empty_row = [None] * 10
-    df = pd.DataFrame([empty_row, empty_row] + data)
+    {'Partido': 'Inter vs Kairat Almaty', 'Equipo': 'Inter', 'Prob_Victoria': '84.0%', 'Prob_Mas1_Gol': '20.0%', 'Prob_Mas2_Goles': '22.7%', 'Prob_Mas3_Goles': '18.7%', 'Prob_Mas4_Goles': '12.0%'},
+    {'Partido': 'Inter vs Kairat Almaty', 'Equipo': 'Kairat Almaty', 'Prob_Victoria': '4.6%', 'Prob_Mas1_Gol': '3.7%', 'Prob_Mas2_Goles': '0.8%', 'Prob_Mas3_Goles': '<0.1%', 'Prob_Mas4_Goles': '0.0%'},
+    {'Partido': 'Inter vs Kairat Almaty', 'Equipo': 'Empate', 'Prob_Victoria': '11.5%', 'Prob_Mas1_Gol': '0%', 'Prob_Mas2_Goles': '0%', 'Prob_Mas3_Goles': '0%', 'Prob_Mas4_Goles': '0%'},
     
-    # --- FIN DE SIMULACIÓN ---
+    {'Partido': 'Man. City vs B. Dortmund', 'Equipo': 'Man. City', 'Prob_Victoria': '57.8%', 'Prob_Mas1_Gol': '17.2%', 'Prob_Mas2_Goles': '17.2%', 'Prob_Mas3_Goles': '10.5%', 'Prob_Mas4_Goles': '5.2%'},
+    {'Partido': 'Man. City vs B. Dortmund', 'Equipo': 'B. Dortmund', 'Prob_Victoria': '22.3%', 'Prob_Mas1_Gol': '7.3%', 'Prob_Mas2_Goles': '6.2%', 'Prob_Mas3_Goles': '2.3%', 'Prob_Mas4_Goles': '0.7%'},
+    {'Partido': 'Man. City vs B. Dortmund', 'Equipo': 'Empate', 'Prob_Victoria': '19.9%', 'Prob_Mas1_Gol': '0%', 'Prob_Mas2_Goles': '0%', 'Prob_Mas3_Goles': '0%', 'Prob_Mas4_Goles': '0%'},
     
-    # Descomenta la siguiente línea para usar tu archivo de Excel real
-    # df = pd.read_excel('datos_champions.xlsx', header=None)
-
-    team_names = df.iloc[2, 2:10].values
+    {'Partido': 'Club Brugge vs FC Barcelona', 'Equipo': 'Club Brugge', 'Prob_Victoria': '19.4%', 'Prob_Mas1_Gol': '11.9%', 'Prob_Mas2_Goles': '5.2%', 'Prob_Mas3_Goles': '1.7%', 'Prob_Mas4_Goles': '0.5%'},
+    {'Partido': 'Club Brugge vs FC Barcelona', 'Equipo': 'FC Barcelona', 'Prob_Victoria': '61.0%', 'Prob_Mas1_Gol': '22.2%', 'Prob_Mas2_Goles': '18.2%', 'Prob_Mas3_Goles': '11.4%', 'Prob_Mas4_Goles': '5.7%'},
+    {'Partido': 'Club Brugge vs FC Barcelona', 'Equipo': 'Empate', 'Prob_Victoria': '19.6%', 'Prob_Mas1_Gol': '0%', 'Prob_Mas2_Goles': '0%', 'Prob_Mas3_Goles': '0%', 'Prob_Mas4_Goles': '0%'},
     
-    ratings = df.iloc[3, 2:10].values
-    tilts = df.iloc[4, 2:10].values
-    elo_general = df.iloc[5, 2:10].values
-    elo_country = df.iloc[6, 2:10].values
-    prob_victoria = df.iloc[7, 2:10].values
-    prob_empate = df.iloc[8, 2:10].values
-    goles_esperados = df.iloc[9, 2:10].values
-    posicion_actual = df.iloc[10, 2:10].values
-    puntos_actuales = df.iloc[11, 2:10].values
+    {'Partido': 'Pafos vs Villarreal', 'Equipo': 'Pafos', 'Prob_Victoria': '27.0%', 'Prob_Mas1_Gol': '15.0%', 'Prob_Mas2_Goles': '7.0%', 'Prob_Mas3_Goles': '2.5%', 'Prob_Mas4_Goles': '0.6%'},
+    {'Partido': 'Pafos vs Villarreal', 'Equipo': 'Villarreal', 'Prob_Victoria': '47.0%', 'Prob_Mas1_Gol': '22.0%', 'Prob_Mas2_Goles': '14.0%', 'Prob_Mas3_Goles': '7.5%', 'Prob_Mas4_Goles': '3.0%'},
+    {'Partido': 'Pafos vs Villarreal', 'Equipo': 'Empate', 'Prob_Victoria': '26.0%', 'Prob_Mas1_Gol': '0%', 'Prob_Mas2_Goles': '0%', 'Prob_Mas3_Goles': '0%', 'Prob_Mas4_Goles': '0%'},
     
-    teams_data = {}
-    for i, team in enumerate(team_names):
-        teams_data[team] = {
-            'rating': clean_numeric(ratings[i]),
-            'tilt': clean_percentage(tilts[i]),
-            'elo_general': int(clean_numeric(elo_general[i])),
-            'elo_country': int(clean_numeric(elo_country[i])),
-            'prob_victoria': clean_percentage(prob_victoria[i]),
-            'prob_empate': clean_percentage(prob_empate[i]),
-            'goles_esperados': clean_numeric(goles_esperados[i]),
-            'posicion_actual': int(clean_numeric(posicion_actual[i])),
-            'puntos_actuales': int(clean_numeric(puntos_actuales[i]))
-        }
+    {'Partido': 'Newcastle vs Athletic Club', 'Equipo': 'Newcastle', 'Prob_Victoria': '56.0%', 'Prob_Mas1_Gol': '23.0%', 'Prob_Mas2_Goles': '16.0%', 'Prob_Mas3_Goles': '9.0%', 'Prob_Mas4_Goles': '4.0%'},
+    {'Partido': 'Newcastle vs Athletic Club', 'Equipo': 'Athletic Club', 'Prob_Victoria': '20.0%', 'Prob_Mas1_Gol': '11.0%', 'Prob_Mas2_Goles': '6.0%', 'Prob_Mas3_Goles': '3.0%', 'Prob_Mas4_Goles': '1.5%'},
+    {'Partido': 'Newcastle vs Athletic Club', 'Equipo': 'Empate', 'Prob_Victoria': '24.0%', 'Prob_Mas1_Gol': '0%', 'Prob_Mas2_Goles': '0%', 'Prob_Mas3_Goles': '0%', 'Prob_Mas4_Goles': '0%'},
     
-    matches_raw = [
-        {'home': 'Qarabağ', 'away': 'Chelsea', 'home_prob': 18.6, 'away_prob': 60.7, 'draw_prob': 20.6},
-        {'home': 'Inter', 'away': 'Kairat Almaty', 'home_prob': 84.0, 'away_prob': 4.6, 'draw_prob': 11.5},
-        {'home': 'Man. City', 'away': 'B. Dortmund', 'home_prob': 57.8, 'away_prob': 22.3, 'draw_prob': 19.9},
-        {'home': 'Club Brugge', 'away': 'FC Barcelona', 'home_prob': 19.4, 'away_prob': 61.0, 'draw_prob': 19.6}
-    ]
+    {'Partido': 'Ajax vs Galatasaray', 'Equipo': 'Ajax', 'Prob_Victoria': '59.0%', 'Prob_Mas1_Gol': '23.0%', 'Prob_Mas2_Goles': '17.0%', 'Prob_Mas3_Goles': '10.0%', 'Prob_Mas4_Goles': '5.0%'},
+    {'Partido': 'Ajax vs Galatasaray', 'Equipo': 'Galatasaray', 'Prob_Victoria': '18.0%', 'Prob_Mas1_Gol': '10.0%', 'Prob_Mas2_Goles': '4.5%', 'Prob_Mas3_Goles': '1.5%', 'Prob_Mas4_Goles': '0.4%'},
+    {'Partido': 'Ajax vs Galatasaray', 'Equipo': 'Empate', 'Prob_Victoria': '23.0%', 'Prob_Mas1_Gol': '0%', 'Prob_Mas2_Goles': '0%', 'Prob_Mas3_Goles': '0%', 'Prob_Mas4_Goles': '0%'},
     
-    match_data = []
-    for match in matches_raw:
-        if match['home'] in teams_data and match['away'] in teams_data:
-            match_data.append({
-                'home_team': match['home'],
-                'away_team': match['away'],
-                'date': '2024-05-08',
-                'home_win_prob': match['home_prob'] / 100.0,
-                'away_win_prob': match['away_prob'] / 100.0,
-                'draw_prob': match['draw_prob'] / 100.0,
-                'home_rating': teams_data[match['home']]['rating'],
-                'away_rating': teams_data[match['away']]['rating'],
-                'home_elo': teams_data[match['home']]['elo_general'],
-                'away_elo': teams_data[match['away']]['elo_general'],
-                'home_goals_xg': teams_data[match['home']]['goles_esperados'],
-                'away_goals_xg': teams_data[match['away']]['goles_esperados'],
-                'elo_diff': teams_data[match['home']]['elo_general'] - teams_data[match['away']]['elo_general'],
-                'rating_diff': teams_data[match['home']]['rating'] - teams_data[match['away']]['rating']
-            })
+    {'Partido': 'Benfica vs Leverkusen', 'Equipo': 'Benfica', 'Prob_Victoria': '49.0%', 'Prob_Mas1_Gol': '21.0%', 'Prob_Mas2_Goles': '14.0%', 'Prob_Mas3_Goles': '7.0%', 'Prob_Mas4_Goles': '3.0%'},
+    {'Partido': 'Benfica vs Leverkusen', 'Equipo': 'Leverkusen', 'Prob_Victoria': '26.0%', 'Prob_Mas1_Gol': '13.0%', 'Prob_Mas2_Goles': '7.0%', 'Prob_Mas3_Goles': '3.0%', 'Prob_Mas4_Goles': '1.0%'},
+    {'Partido': 'Benfica vs Leverkusen', 'Equipo': 'Empate', 'Prob_Victoria': '25.0%', 'Prob_Mas1_Gol': '0%', 'Prob_Mas2_Goles': '0%', 'Prob_Mas3_Goles': '0%', 'Prob_Mas4_Goles': '0%'},
     
-    return teams_data, match_data
+    {'Partido': 'Marsella vs Atalanta', 'Equipo': 'Marsella', 'Prob_Victoria': '39.0%', 'Prob_Mas1_Gol': '19.0%', 'Prob_Mas2_Goles': '11.0%', 'Prob_Mas3_Goles': '5.0%', 'Prob_Mas4_Goles': '2.0%'},
+    {'Partido': 'Marsella vs Atalanta', 'Equipo': 'Atalanta', 'Prob_Victoria': '34.0%', 'Prob_Mas1_Gol': '17.0%', 'Prob_Mas2_Goles': '9.0%', 'Prob_Mas3_Goles': '4.0%', 'Prob_Mas4_Goles': '1.5%'},
+    {'Partido': 'Marsella vs Atalanta', 'Equipo': 'Empate', 'Prob_Victoria': '27.0%', 'Prob_Mas1_Gol': '0%', 'Prob_Mas2_Goles': '0%', 'Prob_Mas3_Goles': '0%', 'Prob_Mas4_Goles': '0%'},
+]
 
-# --- FUNCIONES DE MACHINE LEARNING ---
+# Crear el DataFrame
+df = pd.DataFrame(data)
 
-@st.cache_resource
-def train_prediction_model(_teams_data, _match_data):
-    st.warning("⚠️ **Aviso Importante**: Este modelo es una demostración. Se está entrenando con datos de hoy, lo cual no es correcto. Para un modelo preciso, necesitarías un archivo CSV con cientos de partidos históricos y sus resultados (1 para victoria local, X para empate, 2 para victoria visitante).")
+# Función para limpiar y convertir las cadenas de porcentaje a flotantes
+def porcentaje_a_float(valor):
+    if isinstance(valor, str):
+        valor = valor.replace('%', '')
+        if '<' in valor:
+            # Tratamos valores como '<0.1%' como 0.0005 para fines de visualización
+            return 0.0005 
+        return float(valor) / 100.0
+    return valor
 
-    historical_data = []
-    for match in _match_data:
-        for _ in range(20):
-            home_elo_var = match['home_elo'] + np.random.randint(-50, 50)
-            away_elo_var = match['away_elo'] + np.random.randint(-50, 50)
-            elo_diff_var = home_elo_var - away_elo_var
-            
-            if elo_diff_var > 100:
-                result = 1
-            elif elo_diff_var < -100:
-                result = 2
-            else:
-                result = 0
+# Lista de columnas de probabilidad
+columnas_prob = ['Prob_Victoria', 'Prob_Mas1_Gol', 'Prob_Mas2_Goles', 'Prob_Mas3_Goles', 'Prob_Mas4_Goles']
 
-            historical_data.append({
-                'elo_diff': elo_diff_var,
-                'rating_diff': match['rating_diff'] + np.random.uniform(-5, 5),
-                'home_goals_xg': match['home_goals_xg'] + np.random.uniform(-0.5, 0.5),
-                'away_goals_xg': match['away_goals_xg'] + np.random.uniform(-0.5, 0.5),
-                'result': result
-            })
-    
-    df_train = pd.DataFrame(historical_data)
+# Aplicar la conversión a las columnas de probabilidad
+for col in columnas_prob:
+    df[col] = df[col].apply(porcentaje_a_float)
 
-    features = ['elo_diff', 'rating_diff', 'home_goals_xg', 'away_goals_xg']
-    X = df_train[features]
-    y = df_train['result']
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    model = LogisticRegression(multi_class='ovr', solver='liblinear')
-    model.fit(X_scaled, y)
-    
-    return model, scaler, features
-
-# --- APLICACIÓN DE STREAMLIT ---
-
-def main():
-    st.set_page_config(page_title="Champions League Predictor", layout="wide")
-    st.title("⚽ Sistema de Predicción Champions League")
-    st.markdown("Usando Machine Learning para predecir los resultados de los partidos de hoy.")
-
-    teams_data, match_data = process_data()
-
-    st.header("📊 Datos de los Equipos y Partidos")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Estadísticas de Equipos")
-        st.dataframe(pd.DataFrame(teams_data).T)
-    
-    with col2:
-        st.subheader("Partidos a Predecir")
-        st.dataframe(pd.DataFrame(match_data))
-
-    st.header("🤖 Predicciones con Machine Learning")
-
-    model, scaler, features = train_prediction_model(teams_data, match_data)
-    st.success("✅ Modelo de Regresión Logística entrenado (con datos de demostración).")
-
-    today_matches_df = pd.DataFrame(match_data)
-    X_today = today_matches_df[features]
-    X_today_scaled = scaler.transform(X_today)
-    
-    predictions = model.predict(X_today_scaled)
-    prediction_probs = model.predict_proba(X_today_scaled)
-
-    results_map = {0: 'Empate', 1: 'Victoria Local', 2: 'Victoria Visitante'}
-    today_matches_df['Predicción ML'] = [results_map[p] for p in predictions]
-    
-    probs_df = pd.DataFrame(prediction_probs, columns=model.classes_)
-    today_matches_df['Prob. Empate'] = probs_df[0].round(2) * 100
-    today_matches_df['Prob. Victoria Local'] = probs_df[1].round(2) * 100
-    today_matches_df['Prob. Victoria Visitante'] = probs_df[2].round(2) * 100
-
-    st.subheader("Resultados Predichos")
-    st.dataframe(today_matches_df[['home_team', 'away_team', 'Predicción ML', 'Prob. Victoria Local', 'Prob. Empate', 'Prob. Victoria Visitante']])
+# Obtener la lista de partidos únicos para el selector
+partidos_unicos = df['Partido'].unique()
 
 
-if __name__ == "__main__":
-    main()
+# --- INTERFAZ DE STREAMLIT ---
+
+st.title("⚽ Dashboard de Predicciones - Champions League")
+st.markdown("Análisis de probabilidades para los partidos de la Champions League. Selecciona un partido en el menú de la izquierda para ver los detalles.")
+
+# Selector de partido en la barra lateral
+selected_match = st.sidebar.selectbox("Selecciona un Partido:", partidos_unicos)
+
+# Filtrar el DataFrame según el partido seleccionado
+filtered_df = df[df['Partido'] == selected_match]
+
+# --- VISUALIZACIONES ---
+
+st.header(f"Análisis del Partido: {selected_match}")
+
+# Gráfico 1: Probabilidad de Victoria (ELO)
+st.subheader("1. Probabilidad de Victoria (ELO)")
+fig_win = px.bar(
+    filtered_df, 
+    x='Equipo', 
+    y='Prob_Victoria',
+    labels={'Prob_Victoria': 'Probabilidad de Victoria', 'Equipo': 'Equipo / Resultado'},
+    title='Comparación de Probabilidades de Victoria y Empate',
+    text_auto='.1%' # Muestra el valor como porcentaje en la barra
+)
+fig_win.update_layout(yaxis_tickformat='.1%', xaxis_title="Equipo / Resultado", yaxis_title="Probabilidad")
+st.plotly_chart(fig_win, use_container_width=True)
+
+# Gráfico 2: Probabilidad de Diferencia de Goles
+st.subheader("2. Probabilidad de Victoria por Diferencia de Goles")
+
+# Preparar datos para el gráfico de goles
+# Excluimos el empate y "derritimos" el DataFrame para el formato largo (ideal para plotly)
+teams_df = filtered_df[filtered_df['Equipo'] != 'Empate']
+df_melted = teams_df.melt(
+    id_vars=['Equipo'], 
+    value_vars=['Prob_Mas1_Gol', 'Prob_Mas2_Goles', 'Prob_Mas3_Goles', 'Prob_Mas4_Goles'],
+    var_name='Diferencia de Goles', 
+    value_name='Probabilidad'
+)
+
+# Limpiar los nombres de las categorías de goles
+df_melted['Diferencia de Goles'] = df_melted['Diferencia de Goles'].str.replace('Prob_Mas', '+').str.replace('_Goles', '')
+
+fig_goals = px.bar(
+    df_melted, 
+    x='Diferencia de Goles', 
+    y='Probabilidad', 
+    color='Equipo',
+    barmode='group', # Agrupa las barras por equipo
+    labels={'Probabilidad': 'Probabilidad de Ganar con esa Diferencia', 'Diferencia de Goles': 'Diferencia de Goles'},
+    title='Distribución de Probabilidades de Margen de Victoria',
+    text_auto='.1%'
+)
+fig_goals.update_layout(yaxis_tickformat='.1%', xaxis_title="Diferencia de Goles", yaxis_title="Probabilidad")
+st.plotly_chart(fig_goals, use_container_width=True)
+
+
+# Tabla de datos detallados
+st.subheader("3. Tabla de Probabilidades Detalladas")
+# Formateamos el DataFrame para mostrarlo como porcentajes
+df_display = filtered_df.copy()
+for col in columnas_prob:
+    df_display[col] = df_display[col].map('{:.1%}'.format)
+
+# Renombrar columnas para mayor claridad
+df_display_renamed = df_display.rename(columns={
+    'Prob_Victoria': 'Prob. ELO Victoria',
+    'Prob_Mas1_Gol': 'Prob. +1 Gol (Diferencia)',
+    'Prob_Mas2_Goles': 'Prob. +2 Goles (Diferencia)',
+    'Prob_Mas3_Goles': 'Prob. +3 Goles (Diferencia)',
+    'Prob_Mas4_Goles': 'Prob. +4 Goles (Diferencia)'
+})
+
+st.dataframe(df_display_renamed, use_container_width=True, hide_index=True)
